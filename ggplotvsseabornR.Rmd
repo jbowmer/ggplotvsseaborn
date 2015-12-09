@@ -1,0 +1,111 @@
+---
+title: "ggplot vs seaborn - R"
+author: "JB"
+date: "8 December 2015"
+output: html_document
+---
+
+This is the R version of the code for examining the meat dataset.
+
+```{r}
+meat = read.csv('/Users/Jake/Projects/ggplotvsseaborn/meat.csv')
+str(meat)
+```
+
+Coerce date to an actual date object:
+
+```{r}
+meat$date = as.Date(meat$date)
+```
+
+#Data
+
+```{r, echo=FALSE}
+head(meat, n=10)
+tail(meat, n=10)
+
+
+```
+
+This is the sum by year aggregation:
+
+```{r}
+library(lubridate)
+library(dplyr)
+#First, create a year column using the lubridate package:
+meat = mutate(meat, year = year(date))
+#Then, group by year and sum columns:
+
+meat_by_year = meat %>%
+  group_by(year) %>%
+  summarise_each(funs(sum))
+
+#clean to get just the columns we are interested in:
+
+meat_by_year = select(meat_by_year,
+                      year, beef, veal, pork, lamb_and_mutton, broilers, other_chicken, turkey)
+```
+
+#Plotting:
+
+```{r}
+#Beef yearly trends:
+library(ggplot2)
+ggplot(meat_by_year, aes(x = year, y = beef)) + 
+  geom_bar(stat = 'identity') +
+  scale_y_continuous() +
+  ggtitle('Head of Cattle Slaughtered by Year')
+        
+```
+
+#Melt the data so we can see trends across different types of livestock:
+
+```{r}
+library(reshape2)
+
+#we focus on beef, veal, pork and turkey.
+meat_by_year = select(meat_by_year,
+                      year, beef, veal, pork, turkey)
+
+melt_data = melt(as.data.frame(meat_by_year), id.vars = 'year')
+
+ggplot(melt_data, aes(x= year, y = value, color = variable)) + 
+  geom_line() +
+  ggtitle('By Year, by type of Meat')
+
+#alternatively, using faceting
+
+ggplot(melt_data, aes(x = year, y = value)) + geom_line() +
+  facet_wrap(~ variable)
+
+
+#Change the colurs up a bit - wesanderson pallettes:
+library(wesanderson)
+ggplot(melt_data, aes(x= year, y = value, color = variable)) + 
+  geom_line() +
+  scale_fill_manual(values = wes_palette("Darjeeling2")) +
+  ggtitle('By Year, by type of Meat')
+
+```
+
+#Trends over time, not aggregated
+
+```{r}
+meat_one = select(meat, 
+                  date, beef, veal, pork, lamb_and_mutton, broilers, other_chicken, turkey)
+meat_melt = melt(as.data.frame(meat_one), id.vars = 'date')
+
+#Time series graph
+
+ggplot(meat_melt, aes(x = date, y = value, colour = variable)) +
+  geom_line() +
+  ggtitle('Trends over time')
+
+#Lets smooth in order to see the trends:
+
+ggplot(meat_melt, aes(x = date, y = value, colour = variable)) +
+  geom_smooth() +
+  ggtitle ('Trends over time, smoothed')
+
+ggplot(meat_melt, aes(x = date, y = value)) + geom_smooth() +
+  facet_wrap(~variable)
